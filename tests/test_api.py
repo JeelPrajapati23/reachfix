@@ -141,10 +141,22 @@ def test_scan_reports_exposure_and_subgraph_for_an_uploaded_lockfile(scan_client
     assert body["project"]["id"] == "project:my-app@0.1.0" and body["total_results"] == 1
     assert body["results"][0]["path"] == ["project:my-app@0.1.0", *PATH]
     assert body["coverage"] == {"versions": 2, "checked": 2, "unchecked": 0, "unchecked_examples": [],
-                                "live_osv": None}
+                                "live_osv": None, "sbom": None}
     assert body["remediation"] is None  # no release metadata in this fixture
     assert {(e["source"], e["relation"]) for e in body["subgraph"]["edges"]} == {
         ("project:my-app@0.1.0", "DEPENDS_ON"), (PATH[0], "DEPENDS_ON"), (PATH[1], "HAS_VULNERABILITY")}
+
+
+def test_scan_takes_an_sbom(scan_client):
+    sbom = {"bomFormat": "CycloneDX", "specVersion": "1.5",
+            "metadata": {"component": {"bom-ref": "root", "name": "dir", "purl": "pkg:npm/my-app@0.1.0"}},
+            "components": [{"bom-ref": "a", "purl": "pkg:npm/axios@0.21.1"},
+                           {"bom-ref": "f", "purl": "pkg:npm/follow-redirects@1.13.1"}],
+            "dependencies": [{"ref": "root", "dependsOn": ["a"]}, {"ref": "a", "dependsOn": ["f"]}]}
+    body = scan_client.post("/scan?live=false", json=sbom).json()
+
+    assert body["results"][0]["path"] == ["project:my-app@0.1.0", *PATH]
+    assert body["coverage"]["sbom"]["format"] == "CycloneDX 1.5"
 
 
 def test_scan_rejects_a_v1_lockfile(scan_client):

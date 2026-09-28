@@ -162,5 +162,19 @@ def test_scan_lockfile_takes_contents_as_an_object_or_a_string(server, lockfile)
     assert body["total_results"] == 1
 
 
+def test_scan_lockfile_reads_an_sbom_file(server, tmp_path):
+    sbom = {"spdxVersion": "SPDX-2.3", "SPDXID": "SPDXRef-DOCUMENT", "documentDescribes": ["R"],
+            "packages": [{"SPDXID": s, "externalRefs": [{"referenceType": "purl", "referenceLocator": purl}]}
+                         for s, purl in (("R", "pkg:npm/my-app@0.1.0"), ("A", "pkg:npm/axios@0.21.1"),
+                                         ("F", "pkg:npm/follow-redirects@1.13.1"))],
+            "relationships": [{"spdxElementId": "A", "relationshipType": "DEPENDENCY_OF", "relatedSpdxElement": "R"},
+                              {"spdxElementId": "F", "relationshipType": "DEPENDENCY_OF", "relatedSpdxElement": "A"}]}
+    (tmp_path / "sbom.spdx.json").write_text(json.dumps(sbom), encoding="utf-8")
+    body = call(server, "scan_lockfile", path=str(tmp_path / "sbom.spdx.json"), live=False)
+
+    assert body["results"][0]["chain"] == "my-app@0.1.0 → axios@0.21.1 → follow-redirects@1.13.1"
+    assert body["coverage"]["sbom"]["format"] == "SPDX-2.3"
+
+
 def test_chain_drops_id_prefixes():
     assert chain(["project:my-app@0.1.0", "npm:@babel/core@7.0.0"]) == "my-app@0.1.0 → @babel/core@7.0.0"

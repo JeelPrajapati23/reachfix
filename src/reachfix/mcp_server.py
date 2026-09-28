@@ -45,7 +45,7 @@ from .llm_client import build_client
 from .npm.advisory_index import DEFAULT_VARIANT, index_path
 from .npm.live_releases import RegistryClient
 from .npm.osv import OsvClient
-from .npm.upload import load_upload
+from .npm.sbom import load_scan_document
 from .retrieval import build_embedding_client
 
 INSTRUCTIONS = """\
@@ -166,7 +166,7 @@ def read_lockfile(path: str | None, lockfile: dict | str | None) -> dict:
     except json.JSONDecodeError as e:
         raise ToolError(f"{where} is not valid JSON: {e}")
     if not isinstance(lock, dict):
-        raise ToolError(f"{where} is not a package-lock.json object")
+        raise ToolError(f"{where} is not a package-lock.json or SBOM object")
     return lock
 
 
@@ -404,23 +404,26 @@ def create_server(resources: Resources | None = None,
     @mcp.tool(annotations=READ_ONLY_OPEN)
     def scan_lockfile(path: str | None = None, lockfile: dict | str | None = None, live: bool = True,
                       limit: int = 25) -> dict:
-        """Scan the user's own package-lock.json (lockfileVersion 2 or 3): every advisory that reaches it,
-        through which chain, and a fix plan (package.json edits and commands) per vulnerable copy.
+        """Scan the user's own package-lock.json (lockfileVersion 2 or 3) or an SBOM of it (CycloneDX or
+        SPDX 2.x JSON, e.g. from `npm sbom`): every advisory that reaches it, through which chain, and a
+        fix plan (package.json edits and commands) per vulnerable copy.
 
         With live=True, versions outside the dataset are checked on OSV.dev and
         release metadata the fix plans need is fetched from the npm registry.
         `coverage` says how many installed versions were checked. No LLM call.
 
         Args:
-            path: a package-lock.json, or the project directory holding one (on the server's machine).
-            lockfile: the lockfile's contents (a JSON object) instead of a path.
+            path: a package-lock.json or SBOM file, or the project directory holding a package-lock.json
+                (on the server's machine).
+            lockfile: the lockfile's or SBOM's contents (a JSON object) instead of a path.
             live: query OSV.dev and the npm registry (False: dataset only, no network).
             limit: exposure rows to return (totals cover all of them; up to 10 fix plans).
         """
         res = state.res
         lock = read_lockfile(path, lockfile)
         try:
-            upload = load_upload(res.ctx.store, lock, res.osv if live else None)
+            upload = load_scan_document(res.ctx.store, lock, res.ctx.releases.packages if res.ctx.releases else None,
+                                        res.osv if live else None, res.registry if live else None)
         except ValueError as e:
             raise ToolError(str(e))
         result = run_scan(res.ctx, upload, registry=res.registry if live else None)

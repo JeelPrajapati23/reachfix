@@ -67,11 +67,12 @@ class Upload:
     unchecked: list[str]                 # versions OSV was never queried for (see module docstring)
     warnings: list[str] = field(default_factory=list)
     live_osv: dict | None = None         # what the live lookup queried, added and disagreed on
+    source: dict | None = None           # how an SBOM was converted (npm/sbom.py); None for a lockfile
 
     def coverage(self) -> dict:
         return {"versions": len(self.install_paths), "checked": len(self.install_paths) - len(self.unchecked),
                 "unchecked": len(self.unchecked), "unchecked_examples": self.unchecked[:MAX_LISTED],
-                "live_osv": self.live_osv}
+                "live_osv": self.live_osv, "sbom": self.source}
 
 
 def upload_doc_id(lock: dict) -> str:

@@ -608,6 +608,54 @@ ungrounded.
   had an ungrounded version. All 4 remediation answers are grounded and
   name the expected fix.
 
+## Scanning SBOMs
+
+```bash
+npm sbom --sbom-format cyclonedx --package-lock-only > sbom.json   # or --sbom-format spdx
+uv run python scripts/scan_lockfile.py sbom.json
+```
+
+`/scan`, `scripts/scan_lockfile.py` and the MCP `scan_lockfile` tool take
+a CycloneDX JSON or SPDX 2.x JSON SBOM as well as a package-lock.json
+(`reachfix.npm.sbom`, `load_scan_document`). The SBOM is converted into a
+lockfile and scanned by the same upload code, so exposure, live OSV and
+fix plans are unchanged. What an SBOM lacks, and how it is filled in:
+
+- **Install layout.** Each dependency is placed where Node would find it
+  from its dependent: hoisted to the top if the name is free, nested under
+  the dependent if another version holds it. The dependency walk then
+  resolves every SBOM edge to its exact target.
+- **Declared ranges** (remediation needs them): from the corpus graph's
+  DEPENDS_ON edges, then releases.json, then the live registry (only for
+  packages with dependencies that neither has). A range that is still
+  unknown is pinned to the installed version and counted in a warning.
+- **The project's own ranges.** package.json isn't in an SBOM, so direct
+  dependencies are assumed to be `^<installed version>` (npm's default
+  save prefix), with a warning. A project that pins exact versions gets
+  "refresh the lockfile" where a lockfile scan says "edit package.json".
+- **Dependency types.** CycloneDX has none. npm's SPDX output omits peer
+  dependencies, and so does its CycloneDX output for trees installed with
+  `--legacy-peer-deps`. For corpus versions the graph has the real types,
+  so those edges get them back, and missing peers are re-added where the
+  peer is installed and visible from the dependent.
+- **Dev dependencies.** From npm's `cdx:npm:package:development` property
+  or SPDX `DEV_DEPENDENCY_OF`; otherwise anything not reachable from the
+  project through non-dev edges.
+- Only `pkg:npm` purls are scanned. Components with no path from the
+  project become direct dependencies (an SBOM without dependency data is
+  scanned flat); a second version of one can't be, and is counted.
+
+**Check.** `npm sbom` (npm 11; `--legacy-peer-deps` for next and
+react-scripts, which have missing peers) on all 20 corpus lockfiles, both
+formats, scanned offline: all 40 SBOMs give the same advisories, chains
+and fix plans as their lockfiles. Before the graph-type recovery, 8 plans
+differed (missing peer-range caveats) and 2 chains. A project outside the
+corpus (express 4.18.2, lodash 4.17.20, jsonwebtoken 8.5.1, nodemon as a
+dev dependency; 103 packages) scanned live: same 34 advisories (11 dev-only)
+and all 149 ranges found on the registry. Its 2 direct dependencies pinned
+exactly in package.json got "refresh the lockfile" plans instead of
+"edit package.json", as described above.
+
 ## Schema
 
 See [`schema/v2.yaml`](../schema/v2.yaml). Key decisions:

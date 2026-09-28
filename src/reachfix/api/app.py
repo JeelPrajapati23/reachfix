@@ -30,7 +30,7 @@ from ..depgraph import route_query
 from ..depgraph.scan import run_scan
 from ..depgraph.synthesis import synthesize_answer
 from ..graph import ego_subgraph
-from ..npm.upload import load_upload
+from ..npm.sbom import load_scan_document
 from .ratelimit import QueryLimiter, client_ip
 from .resources import Resources, load_resources
 from .views import fix_plans, plan_summaries, result_subgraph
@@ -98,14 +98,15 @@ def create_app(resources: Resources | None = None, loader: Callable[[], Resource
     @app.post("/scan")
     def scan(
         request: Request,
-        lock: dict = Body(description="package-lock.json contents (lockfileVersion 2 or 3)"),
+        lock: dict = Body(description="package-lock.json (lockfileVersion 2 or 3), CycloneDX JSON or SPDX 2.x JSON"),
         live: bool = Query(default=True, description="query OSV.dev and the npm registry for what the dataset lacks"),
     ) -> dict:
         # No LLM or embedding call. With live, versions outside the dataset are queried on OSV.dev and
         # missing release metadata is fetched from the npm registry; failures come back as warnings.
         res: Resources = request.app.state.resources
         try:
-            upload = load_upload(res.ctx.store, lock, res.osv if live else None)
+            upload = load_scan_document(res.ctx.store, lock, res.ctx.releases.packages if res.ctx.releases else None,
+                                        res.osv if live else None, res.registry if live else None)
         except ValueError as e:
             raise HTTPException(status_code=422, detail=str(e))
         result = run_scan(res.ctx, upload, registry=res.registry if live else None)
