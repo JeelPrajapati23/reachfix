@@ -6,6 +6,8 @@
 (free tier: the first request after 15 idle minutes takes about a minute
 while the service wakes up)
 
+[![24-second demo: npm install express@4.17.1 brings in 14 advisories; reachfix scans the lockfile, draws each chain and plans the fix (upgrade express to 4.22.0)](docs/images/demo.jpg)](docs/images/demo.mp4)
+
 Which of your projects does a vulnerability reach, through which chain of
 transitive dependencies, and what is the smallest upgrade that fixes it
 without breaking the version ranges your other dependencies declare?
@@ -48,6 +50,10 @@ The npm pipeline ("DepGraph") runs end to end over 20 date-pinned projects
   every dependent's declared range accepts. If a dependent blocks it, the
   upgrade that dependent needs, repeating up to the project itself, with an
   npm `overrides` fallback.
+- **Scanning your own project:** upload a `package-lock.json` or an SBOM
+  (CycloneDX or SPDX JSON, e.g. from `npm sbom`). It is layered over the
+  graph, versions outside the dataset are checked on OSV.dev live, and each
+  vulnerable copy gets a fix plan that edits your package.json.
 - **Answers:** cite `[G#]` graph facts (readable dependency chains) and
   `[A#]` advisory text with osv.dev links. They are checked for advisory
   ids and package versions that aren't in the evidence.
@@ -62,6 +68,7 @@ Every check is derived from the graph or from OSV, not hand-labelled
 | --- | --- |
 | Our semver matching vs OSV's own affected-version matching | 556/556 agree |
 | Uploaded-lockfile scans vs the graph's exposure (the 20 corpus lockfiles re-scanned as uploads) | 20/20 identical |
+| SBOM scans vs lockfile scans (`npm sbom` of the 20 corpus lockfiles, CycloneDX and SPDX) | 40/40 same advisories, chains and fix plans |
 | Router: route / relational pattern on 24 questions | 23/24 / 22/24 (varies slightly between runs) |
 | Answers citing their evidence / grounded (no id or version outside the evidence) | 24/24 / 23/24 |
 | Answers mentioning every expected fact (versions, advisories, fixes) | 24/24 |
@@ -77,7 +84,7 @@ tuned against it.
 The [hosted demo](https://reachfix-latest.onrender.com) has three tabs: ask
 a question (cited answer plus the dependency chains drawn as a graph),
 explore the graph around a package, version or advisory, and scan your own
-`package-lock.json` for exposure and fix plans. Questions are rate-limited
+`package-lock.json` or SBOM for exposure and fix plans. Questions are rate-limited
 (10 per IP per hour, 100 per day overall); scans and graph exploration are
 not. It runs from a prebuilt image (`Dockerfile`) on Render.
 
@@ -86,6 +93,7 @@ Locally:
 ```bash
 uv run python scripts/ask_depgraph.py "Is axios@0.21.1 exposed to CVE-2022-0155?"
 uv run python scripts/ask_depgraph.py "How do I fix CVE-2024-45296 in express@4.17.1?"
+uv run python scripts/scan_lockfile.py path/to/package-lock.json   # or an SBOM: npm sbom --sbom-format cyclonedx
 ```
 
 Or serve the chat + graph demo page and HTTP API (`/query`,

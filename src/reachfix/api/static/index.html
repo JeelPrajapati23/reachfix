@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>reachfix</title>
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2317181c'/%3E%3Cg transform='translate(5 5)' fill='none' stroke='%23f4f1ea' stroke-width='2'%3E%3Cpath d='M6.3 10 15.7 5M6.3 12l9.4 5'/%3E%3Ccircle cx='4' cy='11' r='2.5'/%3E%3Ccircle cx='18' cy='4' r='2.5'/%3E%3Ccircle cx='18' cy='18' r='2.5' fill='%23e0664a' stroke='%23e0664a'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -314,9 +314,10 @@
 
     <div class="view" id="view-scan" hidden>
       <div class="drop">
-        <h2>Scan your package-lock.json</h2>
+        <h2>Scan your package-lock.json or SBOM</h2>
         <p>Your lockfile is laid over the dataset graph: every vulnerable version it installs, the chain that pulls
-           it in, and a fix plan that edits your own package.json. Nothing is stored.</p>
+           it in, and a fix plan that edits your own package.json. A CycloneDX or SPDX JSON SBOM
+           (<span class="mono">npm sbom</span>) works too. Nothing is stored.</p>
         <div class="row">
           <button class="primary" id="scan-btn" type="button">Choose a file</button>
           <input id="scan-file" type="file" accept=".json,application/json" hidden>
@@ -1006,7 +1007,7 @@ function scanHtml(r, fileName) {
   const rem = r.remediation;
   const plans = r.fix_plans ?? [];
   return `<article class="card">
-      <p class="eyebrow">Scan · ${esc(fileName)}</p>
+      <p class="eyebrow">Scan · ${esc(fileName)}${cov.sbom ? ` · ${esc(cov.sbom.format)}` : ""}</p>
       <p style="margin:4px 0 0; font: 500 22px var(--serif)">${esc(shortId(r.project.id))}</p>
       <div class="kpis">
         <div class="kpi"><span>Advisories</span><strong class="${t.advisories ? "bad" : ""}">${t.advisories}</strong></div>
@@ -1018,6 +1019,9 @@ function scanHtml(r, fileName) {
       <p class="muted" style="margin:10px 0 0">${cov.checked} of ${cov.versions} installed versions checked against OSV${live
         ? `; ${live.queried} queried live, ${live.advisories_added} advisories not in the dataset; our matching agrees with OSV on ${live.agree} of ${live.agree + live.only_ours + live.only_osv} pairs`
         : ""}.</p>
+      ${cov.sbom ? `<p class="muted" style="margin:4px 0 0">SBOM: ${cov.sbom.components} npm components; declared ranges
+        found for ${cov.sbom.ranges_from_manifests} of ${cov.sbom.dependency_edges} dependencies${cov.sbom.peers_added
+        ? `, ${cov.sbom.peers_added} peer dependencies restored` : ""}.</p>` : ""}
       ${r.warnings.map(w => `<div class="warn">${esc(w)}</div>`).join("")}
     </article>
     ${exposure ? `<div><p class="eyebrow">Vulnerable dependencies</p>${exposure}
@@ -1036,7 +1040,7 @@ async function scanFile(file) {
   try {
     lock = JSON.parse(await file.text());
   } catch {
-    out.innerHTML = `<p class="warn">${esc(file.name)} is not valid JSON; upload a package-lock.json.</p>`;
+    out.innerHTML = `<p class="warn">${esc(file.name)} is not valid JSON; upload a package-lock.json or a JSON SBOM.</p>`;
     return;
   }
   btn.disabled = true;
