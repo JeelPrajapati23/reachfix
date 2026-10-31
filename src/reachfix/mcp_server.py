@@ -455,7 +455,7 @@ def create_server(resources: Resources | None = None,
         except (groq.APIError, HfHubHTTPError) as e:
             raise ToolError(f"upstream provider error: {e}")
         return {"answer": answer["answer"], "citations": answer["citations"], "totals": answer["totals"],
-                "checks": answer["checks"], "route": result["executed_route"],
+                "checks": answer["checks"], "declined": answer["declined"], "route": result["executed_route"],
                 "pattern": result["executed_pattern"], "warnings": answer["warnings"],
                 "fix_plans": [plan_row(p) for p in fix_plans(result)]}
 

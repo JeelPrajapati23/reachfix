@@ -876,8 +876,9 @@ function turnHtml(r, tid) {
   return `
     <div class="meta">
       <span class="chip">${esc(r.executed_route)}</span>${pattern ? `<span class="chip">${esc(pattern)}</span>` : ""}
-      ${flagged.length ? `<span class="chip bad">not in evidence: ${esc(flagged.join(", "))}</span>`
-                       : `<span class="chip ok">✓ grounded</span>`}
+      ${r.declined ? `<span class="chip">${r.declined === "off_topic" ? "off topic" : "no matching advisory text"}</span>`
+        : flagged.length ? `<span class="chip bad">not in evidence: ${esc(flagged.join(", "))}</span>`
+                         : `<span class="chip ok">✓ grounded</span>`}
       ${r.subgraph?.nodes?.length ? `<button type="button" class="redraw" data-turn="${tid}">show graph</button>` : ""}
       ${r.classification_reasoning ? `<span class="reason">${esc(r.classification_reasoning)}</span>` : ""}
     </div>

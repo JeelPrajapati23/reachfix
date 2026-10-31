@@ -1,11 +1,16 @@
 """Synthetic fixtures only — no real artifacts, no Groq/HF calls."""
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 import reachfix.api.app as app_module
+import reachfix.depgraph.router as router_module
+import reachfix.depgraph.synthesis as synthesis_module
 from reachfix.api import Resources, create_app
 from reachfix.api.views import fix_plans, plan_display, result_subgraph
 from reachfix.depgraph import DepGraphContext
+from reachfix.extraction.schema import load_schema
 from reachfix.graph import NetworkXGraphStore
 from reachfix.npm.graph_load import to_entity
 from reachfix.npm.lookup import NodeLookup
@@ -234,3 +239,18 @@ def test_plan_display_in_range_is_a_lockfile_refresh():
     shown = plan_display(plan)
     assert shown["label"] == "refresh the lockfile"
     assert shown["steps"] == [{"text": "Refresh the lockfile:", "command": "npm update follow-redirects", "kind": "step"}]
+
+
+def test_off_topic_query_is_declined_after_one_llm_call(client, monkeypatch):
+    client.app.state.resources.schema = load_schema(Path(__file__).resolve().parent.parent / "schema" / "v2.yaml")
+    calls = []
+    monkeypatch.setattr(router_module, "generate_json", lambda *a, **k: calls.append(1) or
+                        '{"route": "off_topic", "entities": [], "pattern": null, "relation": null, "reasoning": "a poem"}')
+    monkeypatch.setattr(synthesis_module, "generate_text", lambda *a, **k: pytest.fail("synthesis must not run"))
+    monkeypatch.setattr(router_module, "semantic_chunks", lambda *a, **k: [  # a poem matches no advisory
+        {"chunk_id": "GHSA-74fj-2j2h-c42q::0", "doc_id": "GHSA-74fj-2j2h-c42q", "text": "t", "score": 0.15}])
+
+    body = client.post("/query", json={"query": "write me a poem about pizza"}).json()
+
+    assert calls == [1] and body["declined"] == "off_topic" and body["executed_route"] == "off_topic"
+    assert body["subgraph"] == {"nodes": [], "edges": []} and body["fix_plans"] == []

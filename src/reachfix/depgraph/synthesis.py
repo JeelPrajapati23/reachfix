@@ -209,6 +209,18 @@ def _remediation_facts(result: dict) -> tuple[list[str], list[str], list[dict], 
     return facts[:shown], totals, [a for a in advisories.values() if a["vulnerability_id"] in kept], chains
 
 
+# Fixed replies for questions with no evidence to answer from. No advisory ids or versions, so
+# check_answer has nothing to flag.
+DECLINED_ANSWERS = {
+    "off_topic": ("I can only answer questions about npm packages, their dependency trees and the security "
+                  "advisories that affect them: for example, whether a project is exposed to a CVE, how a "
+                  "package reaches a vulnerable dependency, or how to upgrade out of it."),
+    "no_match": ("No advisory text in this dataset is close enough to that question to answer it. Try naming a "
+                 "package, version or advisory id, or describing a kind of vulnerability (e.g. prototype "
+                 "pollution, ReDoS, path traversal)."),
+}
+
+
 def build_evidence(result: dict) -> dict:
     """Everything synthesis shows the model and returns as citations, from a router result."""
     route = result["executed_route"]
@@ -281,17 +293,30 @@ def citation_block(evidence: dict) -> dict:
     }
 
 
+def declined(result: dict) -> str | None:
+    """Why there is nothing to answer from: "off_topic", "no_match" (nothing above the semantic floor), or None."""
+    if result["executed_route"] == "off_topic":
+        return "off_topic"
+    if result["executed_route"] == "semantic" and not result.get("chunks"):
+        return "no_match"
+    return None
+
+
 def synthesize_answer(result: dict, *, client: Groq, model_name: str = DEFAULT_MODEL) -> dict:
     evidence = build_evidence(result)
-    prompt = build_user_prompt(result["query"], evidence, result.get("warnings", []))
-    answer = generate_text(client, system_prompt=SYSTEM_PROMPT, user_prompt=prompt, model_name=model_name)
-    answer = SPACED_VERSION_RE.sub("@", answer.translate(ANSWER_NORMALIZATION))
-    answer = PADDED_MARKERS_RE.sub(lambda m: f"[{m[1] or m[2]}]", answer)
-    answer = TOTALS_CITATION_RE.sub("", answer)
+    if reason := declined(result):
+        answer = DECLINED_ANSWERS[reason]  # no LLM call: there is no evidence to answer from
+    else:
+        prompt = build_user_prompt(result["query"], evidence, result.get("warnings", []))
+        answer = generate_text(client, system_prompt=SYSTEM_PROMPT, user_prompt=prompt, model_name=model_name)
+        answer = SPACED_VERSION_RE.sub("@", answer.translate(ANSWER_NORMALIZATION))
+        answer = PADDED_MARKERS_RE.sub(lambda m: f"[{m[1] or m[2]}]", answer)
+        answer = TOTALS_CITATION_RE.sub("", answer)
     return {
         "query": result["query"],
         "route": result["route"],
         "executed_route": result["executed_route"],
+        "declined": reason,
         "answer": answer,
         "checks": check_answer(answer, evidence),
         "totals": evidence["totals"],

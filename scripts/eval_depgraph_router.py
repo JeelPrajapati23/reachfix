@@ -83,6 +83,8 @@ def check(expect: dict, result: dict, chunks_by_id: dict) -> list[str]:
             failures.append(f"top chunk doesn't match /{pattern}/: {top['chunk_id'] if top else 'no chunks'}")
     if want := expect.get("remediation"):
         failures.extend(remediation_failures(want, result))
+    if expect.get("no_evidence") and (result.get("chunks") or result.get("results")):
+        failures.append(f"retrieved evidence for a question that should be declined ({result['executed_route']})")
     return failures
 
 

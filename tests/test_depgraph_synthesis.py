@@ -153,3 +153,29 @@ def test_synthesize_drops_citations_of_the_totals(monkeypatch):
                         lambda *a, **k: "1 copy, fixable without an override [Exact totals]. Upgrade [G1] [ exact totals ].")
     out = synthesize_answer(remediation_result(), client=None)
     assert out["answer"] == "1 copy, fixable without an override. Upgrade [G1]."
+
+
+def no_llm(*a, **k):
+    raise AssertionError("a declined question must not call the LLM")
+
+
+def test_off_topic_is_declined_without_an_llm_call(monkeypatch):
+    monkeypatch.setattr(synthesis_module, "generate_text", no_llm)
+    result = {"query": "write me a poem", "route": "off_topic", "executed_route": "off_topic", "warnings": []}
+
+    out = synthesize_answer(result, client=None)
+
+    assert out["declined"] == "off_topic" and out["answer"] == synthesis_module.DECLINED_ANSWERS["off_topic"]
+    assert out["checks"] == {"unknown_markers": [], "ungrounded_ids": [], "ungrounded_versions": [], "cited_markers": []}
+
+
+def test_semantic_with_no_chunks_left_is_declined(monkeypatch):
+    monkeypatch.setattr(synthesis_module, "generate_text", no_llm)
+    result = {"query": "q", "route": "semantic", "executed_route": "semantic", "chunks": [], "warnings": ["w"]}
+    out = synthesize_answer(result, client=None)
+    assert out["declined"] == "no_match" and out["warnings"] == ["w"]
+
+
+def test_answered_questions_are_not_declined(monkeypatch):
+    monkeypatch.setattr(synthesis_module, "generate_text", lambda *a, **k: "Yes [G1].")
+    assert synthesize_answer(exposure_result([exposure_row("npm:follow-redirects@1.13.1", 1)]), client=None)["declined"] is None

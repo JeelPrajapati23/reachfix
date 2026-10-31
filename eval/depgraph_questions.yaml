@@ -12,6 +12,7 @@
 #   nodes_include: node ids that must appear as results (neighbors, affected projects)
 #   chunks_affect_package: every returned advisory chunk must affect this package
 #   top_chunk_matches: regex the top chunk's advisory summary or text must match
+#   no_evidence: nothing was retrieved (no chunks, no results), so the question is declined
 #   remediation: a plan for `version_id` must exist with this `status`, and
 #     optionally this `target_version` and these project (`root`) upgrades.
 #     Expected plans are read off scripts/build_remediation.py's output; the
@@ -176,3 +177,24 @@ questions:
     route: graph_guided_hybrid
     expect:
       chunks_affect_package: follow-redirects
+
+  # off_topic: declined with no evidence. off-02 scores inside the on-topic
+  # similarity band (scripts/calibrate_semantic_floor.py), so only the
+  # classifier can catch it. A prompt-injection question isn't here: the
+  # model refuses it in prose, so it takes the semantic fallback and the
+  # similarity floor declines it (tests/test_depgraph_router.py).
+  - id: off-01
+    question: "Write me a short poem about pizza."
+    route: off_topic
+    expect:
+      no_evidence: true
+  - id: off-02
+    question: "How do I use React hooks?"
+    route: off_topic
+    expect:
+      no_evidence: true
+  - id: off-03
+    question: "What is the capital of France?"
+    route: off_topic
+    expect:
+      no_evidence: true

@@ -28,6 +28,12 @@ from .advisory import embedding_prefix
 
 MINILM = "sentence-transformers/all-MiniLM-L6-v2"
 BGE_M3 = "BAAI/bge-m3"
+# Best-chunk cosine on scripts/calibrate_semantic_floor.py's questions (2026-10-31): on-topic 0.34-0.74,
+# plainly off-topic 0.10-0.25. Off-topic tech questions ("what is npm?" 0.42) overlap the on-topic band;
+# the classifier's off_topic route has to catch those. It also wrongly called 2 of the 18 on-topic ones
+# off_topic (0.54, 0.52), which the second floor (above every off-topic score seen) answers anyway.
+MINILM_WINDOWED_FLOOR = 0.30
+MINILM_WINDOWED_OFF_TOPIC_FLOOR = 0.45
 
 
 @dataclass(frozen=True)
@@ -36,11 +42,18 @@ class Variant:
     dimensions: int
     use_prefix: bool
     max_words: int | None  # None: embed each chunk whole
+    # Semantic-route similarity floor: chunks scoring below it are dropped, and a question with
+    # none left is declined. Scores are model-specific, so it is calibrated per variant (None: off).
+    min_score: float | None = None
+    # A question the classifier calls off_topic is still answered if its best chunk reaches this
+    # (the classifier sometimes refuses terse security questions). None: off_topic is final.
+    off_topic_min_score: float | None = None
 
 
 VARIANTS = {
     "minilm_whole": Variant(MINILM, 384, use_prefix=False, max_words=None),
-    "minilm_windowed": Variant(MINILM, 384, use_prefix=True, max_words=110),
+    "minilm_windowed": Variant(MINILM, 384, use_prefix=True, max_words=110, min_score=MINILM_WINDOWED_FLOOR,
+                               off_topic_min_score=MINILM_WINDOWED_OFF_TOPIC_FLOOR),
     "bge_m3_whole": Variant(BGE_M3, 1024, use_prefix=True, max_words=None),
 }
 DEFAULT_VARIANT = "minilm_windowed"
