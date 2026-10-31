@@ -54,6 +54,11 @@ def node_type(ctx: DepGraphContext, node_id: str) -> str | None:
     return entity["entity_type"] if entity else None
 
 
+def corpus_projects(ctx: DepGraphContext) -> list[str]:
+    """The dataset's root projects, as node ids ("npm:express@4.17.1")."""
+    return sorted(n for n, node in ctx.lookup.nodes.items() if node["properties"].get("is_root"))
+
+
 def named(ctx: DepGraphContext, node_id: str) -> dict:
     entity = ctx.store.get_entity(node_id) or {}
     return {"node_id": node_id, "name": entity.get("canonical_name", node_id), "type": entity.get("entity_type")}

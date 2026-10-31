@@ -35,8 +35,8 @@ from mcp_types import ToolAnnotations
 from .api.resources import DEFAULT_DEPGRAPH_DIR, LIVE_OSV_DIR, LIVE_RELEASES_DIR, REPO_ROOT, Resources
 from .api.views import fix_plans, plan_summaries
 from .depgraph import load_context, route_query
-from .depgraph.dispatch import (named, node_type, project_versions, run_affected_projects, run_dependency_path,
-                                run_exposure, run_remediation, semantic_chunks)
+from .depgraph.dispatch import (corpus_projects, named, node_type, project_versions, run_affected_projects,
+                                run_dependency_path, run_exposure, run_remediation, semantic_chunks)
 from .depgraph.scan import run_scan
 from .depgraph.synthesis import synthesize_answer
 from .extraction.schema import load_schema
@@ -222,7 +222,7 @@ def create_server(resources: Resources | None = None,
         Other tools accept any of these by name ("express") or name@version.
         """
         ctx = state.res.ctx
-        roots = sorted(n for n, node in ctx.lookup.nodes.items() if node["properties"].get("is_root"))
+        roots = corpus_projects(ctx)
         types = [node["node_type"] for node in ctx.lookup.nodes.values()]
         return {"projects": [short(r) for r in roots],
                 "dataset": {"package_versions": types.count("PackageVersion"),

@@ -79,9 +79,9 @@ this dataset.
 - If the evidence doesn't answer the question, say so plainly.
 - If the question asks about the user's own project ("my project", "this \
 project") without naming one, say this dataset can't see it: they can name \
-one of the dataset's projects with its version, or scan their \
-package-lock.json (the Scan lockfile tab, or POST /scan). Don't make up an \
-example project name or version.
+one of the dataset's projects with its version (an example must come from \
+"Dataset projects"), or scan their package-lock.json (the Scan lockfile tab, \
+or POST /scan). Never make up a project name or version.
 - Be concise: a short direct answer first, then the supporting details. List \
 at most 10 advisories or paths (the most severe first) and summarize the rest \
 with the exact totals."""
@@ -242,7 +242,8 @@ def build_evidence(result: dict) -> dict:
     else:
         facts, totals, advisories, chains = [], [], [], []
     chunks = result.get("chunks", [])
-    return {"facts": facts, "totals": totals, "advisories": advisories, "chains": chains, "chunks": chunks}
+    return {"facts": facts, "totals": totals, "advisories": advisories, "chains": chains, "chunks": chunks,
+            "projects": result.get("dataset_projects", [])}
 
 
 def build_user_prompt(query: str, evidence: dict, warnings: list[str]) -> str:
@@ -252,9 +253,12 @@ def build_user_prompt(query: str, evidence: dict, warnings: list[str]) -> str:
         f"[A{i}] {c['doc_id']} ({', '.join(c.get('affected_packages', []))}): {c.get('summary', '')}\n{c['text']}"
         for i, c in enumerate(evidence["chunks"], 1)) or "(none)"
     notes = "\n".join(f"- {w}" for w in warnings)
+    projects = ", ".join(evidence.get("projects", []))
     return (f"Question: {query}\n\n"
             + (f"Retrieval notes:\n{notes}\n\n" if notes else "")
-            + f"Exact totals:\n{totals}\n\nGraph facts:\n{facts}\n\nAdvisory text:\n{chunks}\n\nAnswer:")
+            + f"Exact totals:\n{totals}\n\nGraph facts:\n{facts}\n\nAdvisory text:\n{chunks}\n\n"
+            + (f"Dataset projects (a question can name these):\n{projects}\n\n" if projects else "")
+            + "Answer:")
 
 
 def grounded_ids(evidence: dict) -> set[str]:
@@ -270,7 +274,8 @@ def grounded_ids(evidence: dict) -> set[str]:
 
 def ungrounded_versions(answer: str, evidence: dict) -> list[str]:
     """"name@version" mentions whose name and version never appear together in one evidence line."""
-    lines = [*evidence["facts"], *evidence["totals"], *evidence["chains"], *(c["text"] for c in evidence["chunks"])]
+    lines = [*evidence["facts"], *evidence["totals"], *evidence["chains"], *(c["text"] for c in evidence["chunks"]),
+             *evidence.get("projects", [])]
     flagged = set()
     for name, version in PACKAGE_VERSION_RE.findall(answer):
         if not any(name in line and version in line for line in lines):

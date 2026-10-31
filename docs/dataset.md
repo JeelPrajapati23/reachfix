@@ -494,10 +494,14 @@ marker must point at evidence that exists.
   in place of "✓ grounded". Bracketed notes about the evidence are
   stripped (`EVIDENCE_NOTE_RE`, which also covers the old "[Exact
   totals]" case). And the prompt now says to point an unnamed own-project
-  question at naming a dataset project or scanning a lockfile, without
-  making up an example. In 1 of 3 runs the model still invented one
-  (`my-app@1.0.0`). `ungrounded_versions` flags it, so the page shows "not
-  in evidence" instead of passing it.
+  question at naming a dataset project or scanning a lockfile. Telling
+  the model not to make up an example wasn't enough: it still invented
+  `my-app@1.0.0` and, once live, `jsdiff@8.0.2` (lifted from a retrieved
+  chunk). `ungrounded_versions` flagged both. Semantic results now carry
+  `dataset_projects` (the 20 roots), which the prompt lists as "Dataset
+  projects" and the version check accepts. After that, 6/6 runs of three
+  such questions used a real project (`express@4.17.1`) with nothing
+  flagged, and sem-01..04 stayed 4/4 grounded and citing.
 
 **Routing gap closed in dispatch, not in the prompt.** "Which projects
 pull in a follow-redirects vulnerable to GHSA-74fj…?" was sometimes

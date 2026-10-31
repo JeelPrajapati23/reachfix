@@ -27,7 +27,8 @@ from ..npm.lookup import NodeLookup
 from ..npm.releases import Releases
 from ..retrieval import VectorIndex
 from .classify import build_classification_prompt, build_decision_model
-from .dispatch import DepGraphContext, resolve, run_graph_guided_hybrid, run_relational, semantic_chunks
+from .dispatch import (DepGraphContext, corpus_projects, resolve, run_graph_guided_hybrid, run_relational,
+                       semantic_chunks)
 
 CLASSIFY_ATTEMPTS = 2
 JSON_VALIDATE_FAILED = "json_validate_failed"  # Groq's error code when JSON mode gets a non-JSON reply
@@ -112,6 +113,10 @@ def route_query(query: str, *, client: Groq, ctx: DepGraphContext, schema: Schem
             warnings.append(f"{decision.route} route needs a known entity; fell back to semantic search")
         variant = VARIANTS.get(ctx.variant)
         executed, result = "semantic", floored_chunks(ctx, query, top_k, variant.min_score if variant else None)
+    if executed == "semantic":
+        # Unnamed-project questions ("is my project exposed?") land here; synthesis offers these as
+        # projects the user can name, so its example is a real one rather than an invented one.
+        result["dataset_projects"] = [p.removeprefix("npm:") for p in corpus_projects(ctx)]
     # Dispatch can run a different pattern than classified (see run_relational); keep both.
     executed_pattern = result.pop("pattern", None)
 

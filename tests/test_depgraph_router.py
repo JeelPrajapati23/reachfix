@@ -259,3 +259,10 @@ def test_a_variant_without_a_floor_keeps_every_chunk(ctx, monkeypatch):
     ctx.variant = "minilm_whole"
     classify_as(monkeypatch, route="semantic")
     assert len(route_query("q", client=None, ctx=ctx, schema=SCHEMA, top_k=2)["chunks"]) == 2
+
+
+def test_semantic_results_list_the_dataset_projects(ctx, monkeypatch):
+    classify_as(monkeypatch, route="semantic")
+    assert ask(ctx, "is my project exposed?")["dataset_projects"] == ["app@1.0.0", "other@2.0.0"]
+    classify_as(monkeypatch, route="relational", pattern="exposure", entities=["app@1.0.0"])
+    assert "dataset_projects" not in ask(ctx)

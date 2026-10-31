@@ -195,3 +195,17 @@ def test_notes_about_the_evidence_are_dropped_but_real_brackets_kept(monkeypatch
 
 def test_prompt_points_unnamed_projects_at_a_scan():
     assert "Scan lockfile" in synthesis_module.SYSTEM_PROMPT and "this project" in synthesis_module.SYSTEM_PROMPT
+
+
+def test_dataset_projects_are_offered_and_count_as_evidence(monkeypatch):
+    prompts = []
+    monkeypatch.setattr(synthesis_module, "generate_text", lambda *a, **k: prompts.append(k["user_prompt"]) or
+                        "Name a project such as express@4.17.1, not my-app@1.0.0.")
+    result = {"query": "is my project exposed?", "route": "semantic", "executed_route": "semantic",
+              "chunks": [{"chunk_id": "GHSA-x::0", "doc_id": "GHSA-x", "text": "t"}], "warnings": [],
+              "dataset_projects": ["axios@0.21.1", "express@4.17.1"]}
+
+    out = synthesize_answer(result, client=None)
+
+    assert "Dataset projects (a question can name these):\naxios@0.21.1, express@4.17.1" in prompts[0]
+    assert out["checks"]["ungrounded_versions"] == ["my-app@1.0.0"]
