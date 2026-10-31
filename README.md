@@ -141,9 +141,11 @@ uv sync
 ```
 
 Generation (exploit-condition extraction, router classification, answer
-synthesis) runs on Groq (`openai/gpt-oss-120b`), and embeddings run on the
-Hugging Face Inference API (`sentence-transformers/all-MiniLM-L6-v2`) —
-copy `.env.example` to `.env` and set `GROQ_API_KEY` and `HF_TOKEN`.
+synthesis) runs on Groq (`openai/gpt-oss-120b`). Embeddings
+(`sentence-transformers/all-MiniLM-L6-v2`) run locally through fastembed's
+ONNX export, so no embedding API is needed. Copy `.env.example` to `.env`
+and set `GROQ_API_KEY`. `HF_TOKEN` is only needed for the optional
+`bge_m3_whole` index variant.
 
 ## License
 

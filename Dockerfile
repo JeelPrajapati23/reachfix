@@ -4,7 +4,8 @@
 # Local build and check:
 #   docker build -t ghcr.io/jeelprajapati23/reachfix .
 #   docker run --rm -p 7860:7860 --env-file .env ghcr.io/jeelprajapati23/reachfix
-# GROQ_API_KEY and HF_TOKEN come from the environment (host secrets); no key is baked in.
+# GROQ_API_KEY comes from the environment (host secrets); no key is baked in. HF_TOKEN is optional:
+# the default index's queries are embedded locally.
 ARG DATA_IMAGE=ghcr.io/jeelprajapati23/reachfix-data:latest
 FROM ${DATA_IMAGE} AS data
 
@@ -24,6 +25,11 @@ WORKDIR /home/user/app
 # Dependencies first, so code/data changes don't reinstall them.
 COPY --chown=user pyproject.toml uv.lock README.md LICENSE ./
 RUN uv sync --frozen --no-dev --no-install-project
+
+# Query embeddings run locally (retrieval/embeddings.py): bake the ONNX MiniLM (~90 MB) into the
+# image so a cold start doesn't download it from the Hugging Face Hub.
+ENV FASTEMBED_CACHE_PATH=/home/user/app/.cache/fastembed
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2')"
 
 # Only what the API loads (api/resources.py): graph, node lookup, advisory chunks + index, releases.
 COPY --from=data --chown=user /depgraph/ ./data/processed/depgraph/

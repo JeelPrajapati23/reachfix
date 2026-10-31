@@ -114,7 +114,7 @@ def test_dependency_path_lists_the_dependencys_advisories(server):
     ("affected_projects", {"advisory": "follow-redirects"}, "not a GHSA/CVE advisory id"),
     ("plan_fix", {}, "name at least one"),
     ("plan_fix", {"project": "follow-redirects"}, "not one of the dataset's projects"),
-    ("search_advisories", {"query": "redirect leaks headers"}, "HF_TOKEN"),
+    ("search_advisories", {"query": "redirect leaks headers"}, "no embedding client"),
     ("scan_lockfile", {}, "exactly one of"),
     ("scan_lockfile", {"lockfile": "{not json"}, "not valid JSON"),
     ("scan_lockfile", {"lockfile": [1, 2]}, "valid dictionary"),

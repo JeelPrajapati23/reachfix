@@ -4,7 +4,7 @@ The same functions the API and scripts run (depgraph/dispatch.py,
 depgraph/scan.py, views.plan_summaries), called directly instead of through
 the LLM router: the MCP client is already an LLM, so it picks the tool and
 names the entities itself. Only `ask` goes through the router and answer
-synthesis (Groq). `search_advisories` embeds the query (HF). Everything
+synthesis (Groq). `search_advisories` embeds the query (locally). Everything
 else is graph traversal and makes no provider call.
 
 Results are trimmed for a model's context: node ids lose their "npm:" /
@@ -70,7 +70,7 @@ Relation = Literal["DEPENDS_ON", "HAS_VULNERABILITY", "AFFECTS_VERSION_RANGE", "
 def load_mcp_resources(depgraph_dir: Path = DEFAULT_DEPGRAPH_DIR, variant: str = DEFAULT_VARIANT) -> Resources:
     """Like api.resources.load_resources, but without Groq (only `ask` needs it; see Server.client).
 
-    Without HF_TOKEN the graph tools still work and search_advisories reports the missing token.
+    Query embeddings run locally (retrieval/embeddings.py), so search_advisories needs no HF_TOKEN.
     """
     required = [depgraph_dir / name for name in ("graph.pkl", "nodes.jsonl", "advisory_chunks.jsonl")]
     missing = [p.name for p in required if not p.exists()]
@@ -79,12 +79,8 @@ def load_mcp_resources(depgraph_dir: Path = DEFAULT_DEPGRAPH_DIR, variant: str =
     if missing:
         raise FileNotFoundError(f"missing {', '.join(missing)} in {depgraph_dir}; run the build scripts "
                                 f"(build_depgraph.py, build_advisory_index.py) first")
-    try:
-        embedding_client = build_embedding_client()
-    except RuntimeError:
-        embedding_client = None
-    return Resources(ctx=load_context(depgraph_dir, embedding_client, variant), schema=load_schema(), client=None,
-                     osv=OsvClient(LIVE_OSV_DIR), registry=RegistryClient(LIVE_RELEASES_DIR))
+    return Resources(ctx=load_context(depgraph_dir, build_embedding_client(), variant), schema=load_schema(),
+                     client=None, osv=OsvClient(LIVE_OSV_DIR), registry=RegistryClient(LIVE_RELEASES_DIR))
 
 
 def short(node_id: str) -> str:
@@ -345,7 +341,7 @@ def create_server(resources: Resources | None = None,
         """
         ctx = state.res.ctx
         if ctx.embedding_client is None:
-            raise ToolError("HF_TOKEN is not set (check .env); search_advisories embeds the query on Hugging Face")
+            raise ToolError("no embedding client is configured; search_advisories needs one to embed the query")
         candidates = None
         if package:
             _, ids = state.resolve(package, {"Package"}, "package name (without @version)")

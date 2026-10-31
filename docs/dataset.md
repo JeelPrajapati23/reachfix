@@ -330,6 +330,15 @@ uv run python scripts/eval_advisory_retrieval.py                          # comp
 Retrieval is `VectorIndex` (brute-force cosine), `embed_chunks` and a
 content-keyed embedding cache. The interesting part is what gets embedded.
 
+**Embeddings run locally since 2026-11-01.** The index was built on the
+HF Inference API. When the free monthly credits ran out (402 on every
+query), embedding moved to fastembed's ONNX export of the same
+all-MiniLM-L6-v2, which reproduces the stored vectors at cosine 1.0, so
+the index didn't need rebuilding. bge-m3 still goes to HF. The
+truncation notes below are about the HF endpoint. The local model also
+truncates at 256 word-pieces, which is why the windowed variant still
+matters.
+
 **Silent truncation.** `all-MiniLM-L6-v2` reads 256 word-pieces, and the
 HF endpoint drops the rest without an error. The 802-word chunk embeds
 identically (cosine 1.0) to its first 150 words. 202 of 383 chunks are
