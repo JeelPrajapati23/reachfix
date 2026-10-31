@@ -865,6 +865,7 @@ function turnHtml(r, tid) {
   const factRow = f => `<div class="src" id="${tid}-${esc(f.marker)}"><span class="cite">${esc(f.marker)}</span><span class="fact">${
     esc(f.fact).replace(/\[VULNERABLE:[^\]]*\]/g, m => `<span style="color:var(--vuln)">${m}</span>`)}</span></div>`;
   const shownFacts = facts.filter(f => cited.has(f.marker)), otherFacts = facts.filter(f => !cited.has(f.marker));
+  const shownChunks = chunks.filter(ch => cited.has(ch.marker)), otherChunks = chunks.filter(ch => !cited.has(ch.marker));
   const chunkRow = ch => `<div class="src" id="${tid}-${esc(ch.marker)}"><span class="cite a">${esc(ch.marker)}</span><span>
       <a class="mono" style="font-size:12px" href="${esc(ch.url ?? osvUrl(ch.advisory))}" target="_blank" rel="noopener">${esc(ch.advisory)}</a>
       <br><span style="color:var(--text2)">${esc(ch.snippet)}…</span></span></div>`;
@@ -878,7 +879,8 @@ function turnHtml(r, tid) {
       <span class="chip">${esc(r.executed_route)}</span>${pattern ? `<span class="chip">${esc(pattern)}</span>` : ""}
       ${r.declined ? `<span class="chip">${r.declined === "off_topic" ? "off topic" : "no matching advisory text"}</span>`
         : flagged.length ? `<span class="chip bad">not in evidence: ${esc(flagged.join(", "))}</span>`
-                         : `<span class="chip ok">✓ grounded</span>`}
+        : cited.size ? `<span class="chip ok">✓ grounded</span>`
+        : `<span class="chip">${r.totals?.length ? "from exact totals" : "no evidence cited"}</span>`}
       ${r.subgraph?.nodes?.length ? `<button type="button" class="redraw" data-turn="${tid}">show graph</button>` : ""}
       ${r.classification_reasoning ? `<span class="reason">${esc(r.classification_reasoning)}</span>` : ""}
     </div>
@@ -890,8 +892,9 @@ function turnHtml(r, tid) {
       <p class="eyebrow">Sources</p>
       ${r.totals?.length ? `<details><summary>Exact totals (${r.totals.length})</summary><ul class="totals">${r.totals.map(t => `<li>${esc(t)}</li>`).join("")}</ul></details>` : ""}
       ${shownFacts.map(factRow).join("")}
-      ${chunks.map(chunkRow).join("")}
+      ${shownChunks.map(chunkRow).join("")}
       ${otherFacts.length ? `<details><summary>${shownFacts.length ? "Other graph facts" : "Graph facts"} given to the model (${otherFacts.length})</summary>${otherFacts.map(factRow).join("")}</details>` : ""}
+      ${otherChunks.length ? `<details><summary>${shownChunks.length ? "Other advisory text" : "Advisory text"} given to the model (${otherChunks.length})</summary>${otherChunks.map(chunkRow).join("")}</details>` : ""}
       ${advisories.length ? `<details><summary>Advisories (${advisories.length})</summary>${advisories.slice(0, 25).map(advRow).join("")}</details>` : ""}
     </div>`;
 }

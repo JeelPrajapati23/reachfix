@@ -482,6 +482,22 @@ marker must point at evidence that exists.
 - **False "ungrounded".** Neighbor facts named an advisory by GHSA id
   only, so a correct "CVE-2022-0155 is fixed in 1.14.7" was flagged.
   Neighbor results now carry the advisory's aliases.
+- **Unanswerable "this project" questions (2026-11-01).** "is this project
+  is exposed to cve?" names nothing, so it goes semantic. Four advisory
+  chunks scored just over the 0.30 floor (0.31–0.36), because "exposed to
+  cve" sounds like advisory text. The model rightly cited none of them,
+  but the demo page listed them as Sources. It also wrote "[no graph
+  facts or totals are available]" where a citation goes, and the page
+  still showed "✓ grounded". The fixes: the page now shows only cited
+  chunks and folds the rest (as it already did for graph facts). An
+  answer citing nothing gets "no evidence cited" (or "from exact totals")
+  in place of "✓ grounded". Bracketed notes about the evidence are
+  stripped (`EVIDENCE_NOTE_RE`, which also covers the old "[Exact
+  totals]" case). And the prompt now says to point an unnamed own-project
+  question at naming a dataset project or scanning a lockfile, without
+  making up an example. In 1 of 3 runs the model still invented one
+  (`my-app@1.0.0`). `ungrounded_versions` flags it, so the page shows "not
+  in evidence" instead of passing it.
 
 **Routing gap closed in dispatch, not in the prompt.** "Which projects
 pull in a follow-redirects vulnerable to GHSA-74fj…?" was sometimes

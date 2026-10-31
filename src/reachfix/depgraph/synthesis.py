@@ -42,9 +42,13 @@ ADVISORY_ID_RE = re.compile(r"\b(CVE-\d{4}-\d{4,}|GHSA(?:-[0-9a-z]{4}){3}|MAL-\d
 SPACED_VERSION_RE = re.compile(r"(?<=[\w.-]) ?@ ?(?=\d)")
 # "[ G1 ]" / "[ G1, A2 ]" -> "[G1]" / "[G1, A2]": the model sometimes pads citation brackets.
 PADDED_MARKERS_RE = re.compile(r"\[\s+([GA]\d+(?:\s*,\s*[GA]\d+)*)\s*\]|\[([GA]\d+(?:\s*,\s*[GA]\d+)*)\s+\]")
-# "... without an override [Exact totals]." -> "... without an override.": the totals have no
-# marker, but the model sometimes cites them like one.
-TOTALS_CITATION_RE = re.compile(r"\s*\[\s*exact totals\s*\]", re.IGNORECASE)
+# "... without an override [Exact totals]." -> "... without an override.", and "... can't be
+# determined [no graph facts or totals are available]." -> "... can't be determined.": the model
+# sometimes writes a note about the evidence where a citation goes. Only brackets that talk about the
+# evidence and aren't a marker, a quoted chain's [VULNERABLE: ...] tag or a markdown link are dropped.
+EVIDENCE_NOTE_RE = re.compile(
+    r"\s*\[(?!\s*[GA]\d)(?!\s*VULNERABLE)[^\[\]]*\b(?:evidence|graph facts?|totals|advisory text)\b[^\[\]]*\](?!\()",
+    re.IGNORECASE)
 MARKER_GROUP_RE = re.compile(r"\[([^\]]+)\]")
 MARKER_RE = re.compile(r"\b([GA]\d+)\b")
 PACKAGE_VERSION_RE = re.compile(r"(?<![\w/@.-])((?:@[\w.-]+/)?[\w.-]+)@(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]*[0-9A-Za-z])?)")
@@ -73,6 +77,11 @@ the versions, ranges and overrides it states. Never suggest a version the \
 evidence doesn't give. A fixed version is fixed only for the advisories in \
 this dataset.
 - If the evidence doesn't answer the question, say so plainly.
+- If the question asks about the user's own project ("my project", "this \
+project") without naming one, say this dataset can't see it: they can name \
+one of the dataset's projects with its version, or scan their \
+package-lock.json (the Scan lockfile tab, or POST /scan). Don't make up an \
+example project name or version.
 - Be concise: a short direct answer first, then the supporting details. List \
 at most 10 advisories or paths (the most severe first) and summarize the rest \
 with the exact totals."""
@@ -311,7 +320,7 @@ def synthesize_answer(result: dict, *, client: Groq, model_name: str = DEFAULT_M
         answer = generate_text(client, system_prompt=SYSTEM_PROMPT, user_prompt=prompt, model_name=model_name)
         answer = SPACED_VERSION_RE.sub("@", answer.translate(ANSWER_NORMALIZATION))
         answer = PADDED_MARKERS_RE.sub(lambda m: f"[{m[1] or m[2]}]", answer)
-        answer = TOTALS_CITATION_RE.sub("", answer)
+        answer = EVIDENCE_NOTE_RE.sub("", answer)
     return {
         "query": result["query"],
         "route": result["route"],

@@ -179,3 +179,19 @@ def test_semantic_with_no_chunks_left_is_declined(monkeypatch):
 def test_answered_questions_are_not_declined(monkeypatch):
     monkeypatch.setattr(synthesis_module, "generate_text", lambda *a, **k: "Yes [G1].")
     assert synthesize_answer(exposure_result([exposure_row("npm:follow-redirects@1.13.1", 1)]), client=None)["declined"] is None
+
+
+def test_notes_about_the_evidence_are_dropped_but_real_brackets_kept(monkeypatch):
+    raw = ("It can't be determined [no graph facts or totals are available]. "
+           "axios@0.21.1 → depends_on → follow-redirects@1.13.1 [VULNERABLE: GHSA-74fj-2j2h-c42q / CVE-2022-0155, HIGH] "
+           "[G1]; see [the advisory](https://osv.dev/vulnerability/GHSA-74fj-2j2h-c42q) [Based on the evidence].")
+    monkeypatch.setattr(synthesis_module, "generate_text", lambda *a, **k: raw)
+    out = synthesize_answer(exposure_result([exposure_row("npm:follow-redirects@1.13.1", 1)]), client=None)
+    assert out["answer"] == (
+        "It can't be determined. "
+        "axios@0.21.1 → depends_on → follow-redirects@1.13.1 [VULNERABLE: GHSA-74fj-2j2h-c42q / CVE-2022-0155, HIGH] "
+        "[G1]; see [the advisory](https://osv.dev/vulnerability/GHSA-74fj-2j2h-c42q).")
+
+
+def test_prompt_points_unnamed_projects_at_a_scan():
+    assert "Scan lockfile" in synthesis_module.SYSTEM_PROMPT and "this project" in synthesis_module.SYSTEM_PROMPT
