@@ -359,7 +359,8 @@ first N words):
 - `minilm_whole`: the raw chunk, silently truncated (the baseline)
 - `minilm_windowed`: ~110-word windows overlapping by 20 words, each
   prefixed with the advisory's summary and packages. Search rolls window
-  hits up to their parent chunk (`retrieval/windows.py`).
+  hits up to their parent chunk (`retrieval/windows.py`). 110/20 was a
+  judgment call, not tuned. The sweep below checks it.
 - `bge_m3_whole`: the whole chunk with the same prefix
 
 **Evaluation** (`scripts/eval_advisory_retrieval.py`). There are no
@@ -368,16 +369,61 @@ hand-labeled judgments, so it uses facts already in the data:
   Relevant means OSV's `affected` lists the package.
 - 8 paraphrased vulnerability-class queries. Relevant means the advisory
   text matches a pattern whose words the query avoids.
+- Deep queries (added 2026-11-02): each targets a detail (a workaround, a
+  config option, a "not affected" condition) late in its chunk. Relevant
+  means the advisory text matches the detail's pattern. The script first
+  checks each detail's depth with MiniLM's tokenizer and scores a query
+  only if the detail starts past word-piece 256 of the raw chunk in every
+  relevant advisory, where a whole-chunk embedding never reads. 12 of 18
+  pass. Most have one relevant advisory, so they report hit@5 and MRR.
 
-precision@5 over distinct advisories:
+precision@5 over distinct advisories (deep: hit@5 / MRR):
 
-| Variant | Package queries | Class queries |
+| Variant | Package queries | Class queries | Deep queries |
+|---|---|---|---|
+| `minilm_whole` | 0.626 | 0.725 | 0.250 / 0.250 |
+| `minilm_windowed` | 0.735 | **0.775** | **0.667 / 0.583** |
+| `bge_m3_whole` | **0.761** | 0.675 | not run |
+
+bge-m3's row predates the deep queries. Embedding them needs HF credits
+(402 since the free credits ran out), so `eval/results/advisory_retrieval.json`
+carries its old numbers with a note.
+
+**What helps: prefix vs windows** (2026-11-02, a one-off sweep over
+window size/overlap with the same eval, not a script in the repo). The
+package and class sets can't tell them apart: a whole chunk with the
+prefix and no windows scores 0.742 / 0.775, the same as `minilm_windowed`,
+and every window size from 60 to 200 words with overlap 0/20/40 lands
+within a few hits (packages 0.729–0.774, classes 0.725–0.800). Their
+answers sit in the summary or first paragraph, which survive truncation.
+So on those sets the prefix is the whole gain (+0.12 on packages).
+Deep queries separate them:
+
+| Setting | Deep hit@5 | Deep MRR |
 |---|---|---|
-| `minilm_whole` | 0.626 | 0.725 |
-| `minilm_windowed` | 0.735 | **0.775** |
-| `bge_m3_whole` | **0.761** | 0.675 |
+| whole chunk, no prefix | 0.250 | 0.250 |
+| whole chunk + prefix | 0.417 | 0.333 |
+| 110/20 windows, no prefix | 0.500 | 0.458 |
+| 60/20 windows + prefix | 0.750 | 0.632 |
+| 80/20 windows + prefix | 0.667 | 0.521 |
+| **110/20 windows + prefix** (default) | 0.667 | 0.583 |
+| 140/20 windows + prefix | 0.583 | 0.479 |
+| 200/20 windows + prefix | 0.417 | 0.375 |
 
-Windowing plus the prefix beats the truncated baseline on both sets.
+Windows add about +0.25 hit@5 over a prefixed whole chunk, and the
+prefix about +0.17 on top of windows. Scores fall as windows grow, until
+200-word windows are no better than none. That matches truncation:
+counted with the tokenizer, 44% of 110-word windows (prefix included)
+still exceed 256 word-pieces (median 241; code, URLs and package names
+are dense), against 7% at 60 words and 22% at 80. The ~150-word figure
+above holds for prose, not for these windows. One deep query is 0.083 of
+hit@5, so 60/20 beating 110/20 is a single query and doesn't justify a
+switch alone. If windows are resized, cap them in word-pieces (about
+230, leaving room for the prefix) rather than words, then rebuild the
+index and re-calibrate the semantic floors. Four deep queries miss at
+every setting (sharp's PIE note, Next.js's custom 404 page,
+`images.localPatterns`, Express's `new URL` pre-parsing).
+
 bge-m3 edges ahead on package queries but falls behind on class queries
 (it scored 0.40 on XSS, where both MiniLM variants scored 1.00). Package
 questions mostly take the hybrid route, where the graph already limits

@@ -2,7 +2,15 @@ import numpy as np
 
 from reachfix.npm.advisory import embedding_prefix
 from reachfix.npm.advisory_index import advisory_windows
-from reachfix.npm.retrieval_eval import class_relevance, distinct_advisories, package_queries, precision
+from reachfix.npm.retrieval_eval import (
+    DEEP_QUERIES,
+    class_relevance,
+    distinct_advisories,
+    evidence_offset,
+    package_queries,
+    precision,
+    reciprocal_rank,
+)
 from reachfix.retrieval import VectorIndex
 from reachfix.retrieval.windows import embedding_windows, parent_chunk_id, rollup, search_chunks
 
@@ -76,6 +84,23 @@ def test_eval_helpers():
     assert [r["doc_id"] for r in distinct_advisories(results, 5)] == ["G0", "G1"]
     texts = {"G0": "regular expression denial of service", "G1": "x"}
     assert precision(distinct_advisories(results, 5), class_relevance(r"redos|regular expression denial", texts)) == 0.5
+
+
+def test_deep_query_helpers():
+    results = [{"doc_id": "G0"}, {"doc_id": "G1"}, {"doc_id": "G2"}]
+    texts = {"G0": "nothing here", "G1": "pass { noext: true } to minimatch", "G2": "noext: true again"}
+    assert reciprocal_rank(results, class_relevance(r"noext: true", texts)) == 0.5  # first relevant at rank 2
+    assert reciprocal_rank(results, class_relevance(r"absent", texts)) == 0.0
+    assert evidence_offset("Workarounds: Pass `NoExt: true`", r"noext: true") == 19  # case-insensitive
+    assert evidence_offset("no match", r"noext") is None
+
+
+def test_deep_query_patterns_compile_and_queries_are_unique():
+    import re
+
+    for _, pattern in DEEP_QUERIES:
+        re.compile(pattern)
+    assert len({q for q, _ in DEEP_QUERIES}) == len(DEEP_QUERIES)
 
 
 def test_embedding_call_retries_transient_errors_only():

@@ -44,8 +44,12 @@ The npm pipeline ("DepGraph") runs end to end over 20 date-pinned projects
   556/556.
 - **Retrieval:** a router classifies each question as semantic, relational
   (exposure, affected projects, dependency path, remediation, neighbors) or
-  graph-guided hybrid. Advisory text is searched with windowed MiniLM
-  embeddings.
+  graph-guided hybrid. Advisory text is split into chunks of up to 450
+  words, which are what the LLM reads and answers cite. For search, each
+  chunk is embedded as overlapping 110-word windows, each prefixed with the
+  advisory's summary and package names. That's because MiniLM stops
+  reading after 256 word-pieces, so a detail late in a long chunk would
+  otherwise never be found.
 - **Remediation:** for each vulnerable copy, the lowest fixed version that
   every dependent's declared range accepts. If a dependent blocks it, the
   upgrade that dependent needs, repeating up to the project itself, with an
@@ -73,9 +77,13 @@ Every check is derived from the graph or from OSV, not hand-labelled
 | Answers citing their evidence / grounded (no id or version outside the evidence) | 24/24 / 23/24 |
 | Answers mentioning every expected fact (versions, advisories, fixes) | 24/24 |
 | Advisory search precision@5 (`minilm_windowed`, by package / by vulnerability class) | 0.735 / 0.775 |
+| Advisory search for details past MiniLM's cutoff, hit@5 (12 queries: windowed vs whole-chunk embedding) | 0.667 vs 0.250 |
 
 The eval set is small (24 questions), so the classifier prompt is never
-tuned against it.
+tuned against it. The advisory-search sets are small too (31 package,
+8 class and 12 deep queries). On the package and class sets, most of the
+gain comes from the summary prefix. Only the deep queries show what
+windowing adds (details in [`docs/dataset.md`](docs/dataset.md)).
 
 ![Asking how to fix CVE-2024-45296 in express@4.17.1: a cited, grounded answer (upgrade express to 4.22.0, or an npm override) and the before/after chains](docs/images/ask.png)
 

@@ -1,5 +1,158 @@
 {
   "k": 5,
+  "deep_query_depths": [
+    {
+      "query": "work around by refusing symbolic link entries in a custom filter when extracting an archive",
+      "pattern": "entry\\.type === 'SymbolicLink'|filter out all `SymbolicLink` entries",
+      "evidence_pieces": {
+        "GHSA-9r2w-394v-53qc": 547,
+        "GHSA-qq89-hq3f-393p": 402,
+        "GHSA-r628-mhmh-qjhw": 385,
+        "GHSA-r6q2-hw4h-h46w": 258
+      },
+      "deep": true
+    },
+    {
+      "query": "official Node.js binaries are not compiled as position independent executables",
+      "pattern": "position independent executable",
+      "evidence_pieces": {
+        "GHSA-rgj7-g3m4-5g8c": 282
+      },
+      "deep": true
+    },
+    {
+      "query": "give every route parameter after the first its own pattern, or cap how long URLs can be",
+      "pattern": "limit the url length",
+      "evidence_pieces": {
+        "GHSA-37ch-88jc-xwx2": 344,
+        "GHSA-9wv6-86v2-598j": 497
+      },
+      "deep": true
+    },
+    {
+      "query": "validate the configured size at startup by parsing it with the bytes library and rejecting null",
+      "pattern": "bytes\\.parse\\(\\)",
+      "evidence_pieces": {
+        "GHSA-v422-hmwv-36x6": 35
+      },
+      "deep": false
+    },
+    {
+      "query": "an option to keep accepting mismatched asymmetric key types and algorithms after upgrading",
+      "pattern": "allowinvalidasymmetrickeytypes",
+      "evidence_pieces": {
+        "GHSA-8cf7-32gw-wr33": 372
+      },
+      "deep": true
+    },
+    {
+      "query": "mitigate by lowering the maximum allowed size of HTTP request headers",
+      "pattern": "max-http-header-size|maxheadersize",
+      "evidence_pieces": {
+        "GHSA-3h5v-q93c-6h6q": 676,
+        "GHSA-6fc8-4gx4-v693": 391
+      },
+      "deep": true
+    },
+    {
+      "query": "avoid parsing diffs that contain carriage returns or unicode line separator characters",
+      "pattern": "\\\\u2028`, or `\\\\u2029",
+      "evidence_pieces": {
+        "GHSA-73rr-hh4g-fpgx": 27
+      },
+      "deep": false
+    },
+    {
+      "query": "turn off extended glob syntax as a mitigation",
+      "pattern": "noext: true",
+      "evidence_pieces": {
+        "GHSA-23c5-xmqv-rm74": 411
+      },
+      "deep": true
+    },
+    {
+      "query": "a Windows path starting with a drive letter and two dots slipped past the absolute path check",
+      "pattern": "c:\\.\\./",
+      "evidence_pieces": {
+        "GHSA-5955-9wpr-37jh": 213,
+        "GHSA-9ppj-qmqm-q256": 40,
+        "GHSA-qffp-2rhf-9h96": 37
+      },
+      "deep": false
+    },
+    {
+      "query": "sites that define a custom 404 page are not affected",
+      "pattern": "pages/404\\.js",
+      "evidence_pieces": {
+        "GHSA-vxf5-wxwp-m7g9": 269
+      },
+      "deep": true
+    },
+    {
+      "query": "the fix sets a Cross-Origin-Resource-Policy same-origin response header",
+      "pattern": "cross-origin-resource-policy: same-origin",
+      "evidence_pieces": {
+        "GHSA-79cf-xcqc-c78w": 271
+      },
+      "deep": true
+    },
+    {
+      "query": "applications that whitelist fields or validate input schemas are not affected",
+      "pattern": "whitelist fields",
+      "evidence_pieces": {
+        "GHSA-wpg9-53fq-2r8h": 252
+      },
+      "deep": false
+    },
+    {
+      "query": "patch the lookup table of bracket expression sources to use a null prototype",
+      "pattern": "posix_regex_source",
+      "evidence_pieces": {
+        "GHSA-3v7f-55p6-f55p": 29
+      },
+      "deep": false
+    },
+    {
+      "query": "pin the parser to an old release, which disables string module names",
+      "pattern": "pin `@babel/parser`",
+      "evidence_pieces": {
+        "GHSA-fv7c-fp4j-7gwp": 260
+      },
+      "deep": true
+    },
+    {
+      "query": "deleting the package from the lockfile and reinstalling pulls in a patched copy",
+      "pattern": "deleting it from your package manager's lockfile",
+      "evidence_pieces": {
+        "GHSA-67hx-6x53-jw92": 383
+      },
+      "deep": true
+    },
+    {
+      "query": "stop optimizing local files with an empty local patterns setting",
+      "pattern": "localpatterns: \\[\\]",
+      "evidence_pieces": {
+        "GHSA-h64f-5h5j-jqjh": 275
+      },
+      "deep": true
+    },
+    {
+      "query": "pre-parse user input with new URL before passing it to the redirect helpers",
+      "pattern": "pre-parsing the url string",
+      "evidence_pieces": {
+        "GHSA-rv95-896h-c2vc": 337
+      },
+      "deep": true
+    },
+    {
+      "query": "block decoding of AVIF images by blocking an operation",
+      "pattern": "vipsforeignloadheif",
+      "evidence_pieces": {
+        "GHSA-rgj7-g3m4-5g8c": 252
+      },
+      "deep": false
+    }
+  ],
   "variants": {
     "minilm_whole": {
       "packages": {
@@ -54,6 +207,61 @@
           "query": "crashing the process with a huge input that exhausts memory",
           "precision": 0.6,
           "base_rate": 0.07
+        }
+      ],
+      "deep": {
+        "queries": 12,
+        "hit_at_k": 0.25,
+        "mrr": 0.25
+      },
+      "deep_queries": [
+        {
+          "query": "work around by refusing symbolic link entries in a custom filter when extracting an archive",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "official Node.js binaries are not compiled as position independent executables",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "give every route parameter after the first its own pattern, or cap how long URLs can be",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "an option to keep accepting mismatched asymmetric key types and algorithms after upgrading",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "mitigate by lowering the maximum allowed size of HTTP request headers",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "turn off extended glob syntax as a mitigation",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "sites that define a custom 404 page are not affected",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "the fix sets a Cross-Origin-Resource-Policy same-origin response header",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "pin the parser to an old release, which disables string module names",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "deleting the package from the lockfile and reinstalling pulls in a patched copy",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "stop optimizing local files with an empty local patterns setting",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "pre-parse user input with new URL before passing it to the redirect helpers",
+          "reciprocal_rank": 0.0
         }
       ]
     },
@@ -111,9 +319,65 @@
           "precision": 0.6,
           "base_rate": 0.07
         }
+      ],
+      "deep": {
+        "queries": 12,
+        "hit_at_k": 0.667,
+        "mrr": 0.583
+      },
+      "deep_queries": [
+        {
+          "query": "work around by refusing symbolic link entries in a custom filter when extracting an archive",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "official Node.js binaries are not compiled as position independent executables",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "give every route parameter after the first its own pattern, or cap how long URLs can be",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "an option to keep accepting mismatched asymmetric key types and algorithms after upgrading",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "mitigate by lowering the maximum allowed size of HTTP request headers",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "turn off extended glob syntax as a mitigation",
+          "reciprocal_rank": 0.5
+        },
+        {
+          "query": "sites that define a custom 404 page are not affected",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "the fix sets a Cross-Origin-Resource-Policy same-origin response header",
+          "reciprocal_rank": 0.5
+        },
+        {
+          "query": "pin the parser to an old release, which disables string module names",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "deleting the package from the lockfile and reinstalling pulls in a patched copy",
+          "reciprocal_rank": 1.0
+        },
+        {
+          "query": "stop optimizing local files with an empty local patterns setting",
+          "reciprocal_rank": 0.0
+        },
+        {
+          "query": "pre-parse user input with new URL before passing it to the redirect helpers",
+          "reciprocal_rank": 0.0
+        }
       ]
     },
     "bge_m3_whole": {
+      "note": "Carried over from the run before deep queries were added; re-running it needs HF credits (the HF Inference API returned 402).",
       "packages": {
         "queries": 31,
         "mean_precision": 0.761,
@@ -167,7 +431,9 @@
           "precision": 0.8,
           "base_rate": 0.07
         }
-      ]
+      ],
+      "deep": null,
+      "deep_queries": null
     }
   }
 }

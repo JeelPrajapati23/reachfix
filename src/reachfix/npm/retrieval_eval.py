@@ -12,7 +12,18 @@ are used:
   the class pattern. The queries deliberately avoid the pattern's words, so
   a hit needs a semantic match, not a lexical one.
 
-Both report precision@k over distinct advisories.
+- Deep queries: each targets a detail (a workaround, a config option, a
+  "not affected" condition) that sits past MiniLM's 256-word-piece cutoff
+  of its chunk, so an embedding of the whole chunk never sees it. A
+  retrieved chunk is relevant if its advisory's text matches the detail's
+  pattern. These test what windowing is for, which the other two sets
+  barely touch (their answers sit in the summary or first paragraph).
+  scripts/eval_advisory_retrieval.py checks each detail's depth with the
+  real tokenizer (evidence_offset gives the character position).
+
+Package and class queries report precision@k over distinct advisories.
+Deep queries have one to three relevant advisories, so they report hit@k
+and reciprocal rank instead.
 """
 
 import re
@@ -38,6 +49,47 @@ CLASS_QUERIES = [
      r"command injection|remote code execution|arbitrary code|code injection|arbitrary command"),
     ("crashing the process with a huge input that exhausts memory",
      r"memory exhaustion|out[- ]of[- ]memory|resource exhaustion|uncontrolled resource consumption|memory consumption"),
+]
+
+# (query, pattern of the deep detail). Queries avoid the advisory's summary wording and package name where
+# they can, so the summary/packages prefix alone doesn't answer them.
+DEEP_QUERIES = [
+    ("work around by refusing symbolic link entries in a custom filter when extracting an archive",
+     r"entry\.type === 'SymbolicLink'|filter out all `SymbolicLink` entries"),
+    ("official Node.js binaries are not compiled as position independent executables",
+     r"position independent executable"),
+    ("give every route parameter after the first its own pattern, or cap how long URLs can be",
+     r"limit the url length"),
+    ("validate the configured size at startup by parsing it with the bytes library and rejecting null",
+     r"bytes\.parse\(\)"),
+    ("an option to keep accepting mismatched asymmetric key types and algorithms after upgrading",
+     r"allowinvalidasymmetrickeytypes"),
+    ("mitigate by lowering the maximum allowed size of HTTP request headers",
+     r"max-http-header-size|maxheadersize"),
+    ("avoid parsing diffs that contain carriage returns or unicode line separator characters",
+     r"\\u2028`, or `\\u2029"),
+    ("turn off extended glob syntax as a mitigation",
+     r"noext: true"),
+    ("a Windows path starting with a drive letter and two dots slipped past the absolute path check",
+     r"c:\.\./"),
+    ("sites that define a custom 404 page are not affected",
+     r"pages/404\.js"),
+    ("the fix sets a Cross-Origin-Resource-Policy same-origin response header",
+     r"cross-origin-resource-policy: same-origin"),
+    ("applications that whitelist fields or validate input schemas are not affected",
+     r"whitelist fields"),
+    ("patch the lookup table of bracket expression sources to use a null prototype",
+     r"posix_regex_source"),
+    ("pin the parser to an old release, which disables string module names",
+     r"pin `@babel/parser`"),
+    ("deleting the package from the lockfile and reinstalling pulls in a patched copy",
+     r"deleting it from your package manager's lockfile"),
+    ("stop optimizing local files with an empty local patterns setting",
+     r"localpatterns: \[\]"),
+    ("pre-parse user input with new URL before passing it to the redirect helpers",
+     r"pre-parsing the url string"),
+    ("block decoding of AVIF images by blocking an operation",
+     r"vipsforeignloadheif"),
 ]
 
 
@@ -90,6 +142,17 @@ def class_base_rate(pattern: str, texts: dict[str, str]) -> float:
     """Share of all advisories matching the pattern: what random retrieval would score."""
     regex = re.compile(pattern, re.IGNORECASE)
     return sum(bool(regex.search(t)) for t in texts.values()) / len(texts)
+
+
+def reciprocal_rank(results: list[dict], relevant) -> float:
+    """1 / rank of the first relevant result, 0 if none is relevant."""
+    return next((1 / rank for rank, r in enumerate(results, 1) if relevant(r)), 0.0)
+
+
+def evidence_offset(text: str, pattern: str) -> int | None:
+    """Character offset of the pattern's first match in text (case-insensitive), None if absent."""
+    match = re.search(pattern, text, re.IGNORECASE)
+    return match.start() if match else None
 
 
 def package_counts(chunks: list[dict]) -> Counter:
